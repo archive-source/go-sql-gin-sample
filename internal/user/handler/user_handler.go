@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/core-go/core"
+	"github.com/core-go/search/gin"
 	"github.com/gin-gonic/gin"
 
 	"go-service/internal/user/model"
@@ -18,21 +19,15 @@ type UserHandler struct {
 	Validate func(context.Context, interface{}) ([]core.ErrorMessage, error)
 	LogError func(context.Context, string, ...map[string]interface{})
 	jsonMap  map[string]int
+	*search.SearchHandler
 }
 
-func NewUserHandler(service sv.UserService, validate func(context.Context, interface{}) ([]core.ErrorMessage, error), logError func(context.Context, string, ...map[string]interface{})) *UserHandler {
+func NewUserHandler(find core.Search, service sv.UserService, validate core.Validate, logError core.Log) *UserHandler {
 	userType := reflect.TypeOf(model.User{})
 	_, jsonMap, _ := core.BuildMapField(userType)
-	return &UserHandler{service: service, Validate: validate, LogError: logError, jsonMap: jsonMap}
-}
-
-func (h *UserHandler) All(c *gin.Context) {
-	res, err := h.service.All(c.Request.Context())
-	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	c.JSON(http.StatusOK, res)
+	filterType := reflect.TypeOf(model.UserFilter{})
+	searchHandler := search.NewSearchHandler(find, userType, filterType, logError, nil)
+	return &UserHandler{service: service, Validate: validate, LogError: logError, jsonMap: jsonMap, SearchHandler: searchHandler}
 }
 
 func (h *UserHandler) Load(c *gin.Context) {
